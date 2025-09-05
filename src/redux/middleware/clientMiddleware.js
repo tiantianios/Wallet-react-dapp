@@ -1,0 +1,34 @@
+/*
+ * @Author: tiantian
+ * @Date: 2025-06-05 15:08:15
+ * @LastEditTime: 2025-09-02 12:35:38
+ * @Description: 
+ */
+export default function clientMiddleware(client) {
+  return ({dispatch, getState}) => {
+    return next => action => {
+      if (typeof action === 'function') {
+        return action(dispatch, getState);
+      }
+
+      const { promise, types, ...rest } = action; // eslint-disable-line no-redeclare
+      if (!promise) {
+        return next(action);
+      }
+
+      const [REQUEST, SUCCESS, FAILURE] = types;
+      next({...rest, type: REQUEST});
+
+      const actionPromise = promise(client);
+      actionPromise.then(
+        (result) => next({...rest, result, type: SUCCESS}),
+        (error) => next({...rest, error, type: FAILURE}),
+      ).catch((error)=> {
+        console.error('MIDDLEWARE ERROR:', error);
+        next({...rest, error, type: FAILURE});
+      });
+
+      return actionPromise;
+    };
+  };
+}
